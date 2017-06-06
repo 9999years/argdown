@@ -1,12 +1,8 @@
-import argparse
-# warnings
-import sys
-# resolving paths
-import os
+import argparse as _argparse
+# table col
+import os as _os
 # output
-import textwrap
-
-import scrap_args
+import textwrap as _textwrap
 
 version = '1.0.0'
 
@@ -18,12 +14,12 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
     out = ('#' * depth + f' {header}\n{space}'
         +  '#' * (depth + 1)
         + f' {usage_header}\n{space}'
-        f'```\n{parser.format_usage()}```\n{space}'
+        f'```\n{parser.format_usage()}```\n\n'
         +  '#' * (depth + 1) + f' {args_header}\n{space}'
         +  '#' * (depth + 2) + f' {ref_header}\n{space}')
 
     used_actions = {}
-    cols = os.environ['COLUMNS'] if 'COLUMNS' in os.environ else 80
+    cols = _os.environ['COLUMNS'] if 'COLUMNS' in _os.environ else 80
     args_detailed = ''
 
     options = []
@@ -73,8 +69,8 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         default_str = ''
         if (show_default and
             not (isinstance(action.default, bool)
-            or isinstance(action, argparse._VersionAction)
-            or isinstance(action, argparse._HelpAction))):
+            or isinstance(action, _argparse._VersionAction)
+            or isinstance(action, _argparse._HelpAction))):
             default = repr(action.default)
             table_widths.maximize('default', default)
             options[i]['default'] = default
@@ -83,7 +79,7 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         args_detailed += ('#' * (depth + 2)
             + ' `' + '`, `'.join(action.option_strings)
             + f'`{default_str}\n{space}'
-            + textwrap.fill(action.help, width=cols) + '\n\n')
+            + _textwrap.fill(action.help, width=cols) + '\n\n')
         i += 1
 
     # with proper lengths, we can make the table
@@ -91,7 +87,7 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         - table_widths.short
         - table_widths.long
         - table_widths.default
-        - 3)
+        - 4)
 
     options.insert(0, {
         'short': 'Short',
@@ -106,7 +102,7 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         'help':    '-' * table_widths.help,
     })
     for opt in options:
-        table += (f'{{short:{table_widths.short}}}|'
+        table += (f'|{{short:{table_widths.short}}}|'
             f'{{long:{table_widths.long}}}|'
             f'{{default:{table_widths.default}}}|'
             '{help'
@@ -114,7 +110,5 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
             + '}\n'
         ).format(**opt)
 
-    out += table + space + args_detailed
+    out += table + '\n' + args_detailed
     return out
-
-print(md_help(scrap_args.parser, spacey=True))
