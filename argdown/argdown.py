@@ -112,3 +112,6 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
 
     out += table + '\n' + args_detailed
     return out
+
+def console():
+    print('hii')
