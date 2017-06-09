@@ -118,7 +118,7 @@ def console():
     prog = 'argdown'
     global cols
 
-    argparser = argparse.ArgumentParser(
+    argparser = _argparse.ArgumentParser(
         description='Markdown export for the argparse module',
         epilog='More info: github.com/9999years/argdown',
         prog=prog
@@ -132,6 +132,10 @@ def console():
 
     argparser.add_argument('--license', action='store_true',
         help='Print license information (MIT) and exit.')
+
+    argparser.add_argument(['-h', '--header'], type=str, default='Arguments'
+            ' and Usage',
+            help='Header text for the `Arguments and Usage` section.')
 
     argparser.add_argument('--usage-header', type=str, default='Usage',
             help='Header text for the `Usage` section.')
@@ -191,6 +195,7 @@ SOFTWARE.''')
             # args_header='Arguments', spacey=False, show_default=True,
             # truncate_help=True):
 
+    header        = args.header
     usage_header  = args.usage_header
     ref_header    = args.ref_header
     args_header   = args.args_header
@@ -199,18 +204,36 @@ SOFTWARE.''')
     truncate_help = args.truncate_help
     depth         = args.header_depth
 
+    import re
+
     def gen_help(src):
-        md_help()
+        lines = src.split('\n')
+        for i in range(len(lines)):
+            if '.parse_args(' in line:
+                lastline = i
+                # assured to match so no need for checking haha i hope
+                parser = re.match(line, r'(\w+)\.parse_args\(').group(1)
+                break
+        cut_lines = cut_lines[:lastline - 1]
+        cut_lines.insert('import argdown', 0)
+        cut_lines.append(f'md_help({parser}, depth={depth},'
+            f'header={header}, usage_header={usage_header},'
+            f'ref_header={ref_header}, args_header={args_header},'
+            f'spacey={spacey}, show_default={show_default},'
+            f'truncate_help={truncate_help})')
+        print('\n'.join(cut_lines))
+        exec('\n'.join(cut_lines))
 
     if args.use_stdin:
         # catenate stdinput, parse / render
         src = ''
         for line in sys.stdin:
             src += line + '\n'
+        gen_help(src)
+        exit()
 
     # process each file, respecting encoding, although i really hope nobody ever
     # uses that argument and to be quite frank i haven't tested it
     for fname in args.src_file:
         with open(fname, 'r', encoding=args.encoding) as f:
-            tree = parser.parsed_data
-            print(treetomd(tree, numbering=numbering))
+            gen_help(f.read())
