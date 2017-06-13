@@ -4,8 +4,8 @@ import os as _os
 # output
 import textwrap as _textwrap
 
-version = '1.0.0'
-cols = _os.environ['COLUMNS'] if 'COLUMNS' in _os.environ else 80
+version = '1.1.0'
+cols = _os.environ['COLUMNS'] if 'COLUMNS' in _os.environ else 78
 
 def md_help(parser, *, depth=1, header='Arguments and Usage',
         usage_header='Usage', ref_header='Quick reference table',

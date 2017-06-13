@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='argdown',
     # semver
-    version='1.0.0',
+    version='1.1.0',
     description='Markdown export for the argparse module',
     long_description=long_description,
     url='https://github.com/9999years/argdown',
