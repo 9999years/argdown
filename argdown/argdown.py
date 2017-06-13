@@ -133,8 +133,8 @@ def console():
     argparser.add_argument('--license', action='store_true',
         help='Print license information (MIT) and exit.')
 
-    argparser.add_argument(['-h', '--header'], type=str, default='Arguments'
-            ' and Usage',
+    argparser.add_argument('--header', type=str,
+            default='Arguments and Usage',
             help='Header text for the `Arguments and Usage` section.')
 
     argparser.add_argument('--usage-header', type=str, default='Usage',
@@ -148,13 +148,13 @@ def console():
             default='Arguments', help='Header text for the `Arguments` '
             'section, a detailed listing of all the arguments.')
 
-    argparser.add_argument(['-s', '--spacey'], action='store_true',
+    argparser.add_argument('-s', '--spacey', action='store_true',
             help='Output a blank line after headers.')
 
-    argparser.add_argument(['-h', '--hide-default'], action='store_true',
+    argparser.add_argument('-d', '--hide-default', action='store_true',
             help='Don\'t output default values for the arguments.')
 
-    argparser.add_argument(['-t', '--truncate-help'], action='store_true',
+    argparser.add_argument('-t', '--truncate-help', action='store_true',
         help='Truncate help in the `Quick reference table` section so that '
         'the table\'s width doesn\'t exceed `--width`. Makes terminal output '
         'prettier but means you\'ll probably have to re-write help messages.')
@@ -162,6 +162,10 @@ def console():
     argparser.add_argument('--header-depth', type=int, default=1,
         help='Header depth; number of hashes to output before the '
         'top-level header.')
+
+    argparser.add_argument('--encoding', type=str, default='utf-8',
+        help='Encoding of all input files. Frankly, there\'s no excuse to ever '
+        'use this argument')
 
     argparser.add_argument('-v', '--version', action='version',
         version=f'%(prog)s {version}')
@@ -208,21 +212,20 @@ SOFTWARE.''')
 
     def gen_help(src):
         lines = src.split('\n')
-        for i in range(len(lines)):
+        for i, line in enumerate(lines):
             if '.parse_args(' in line:
                 lastline = i
                 # assured to match so no need for checking haha i hope
-                parser = re.match(line, r'(\w+)\.parse_args\(').group(1)
+                parser = re.search(r'(\w+)\.parse_args\(', line).group(1)
                 break
-        cut_lines = cut_lines[:lastline - 1]
-        cut_lines.insert('import argdown', 0)
-        cut_lines.append(f'md_help({parser}, depth={depth},'
-            f'header={header}, usage_header={usage_header},'
-            f'ref_header={ref_header}, args_header={args_header},'
-            f'spacey={spacey}, show_default={show_default},'
-            f'truncate_help={truncate_help})')
-        print('\n'.join(cut_lines))
-        exec('\n'.join(cut_lines))
+        lines = lines[:lastline - 1]
+        lines.insert(0, 'import argdown')
+        lines.append(f'print(md_help({parser}, depth={depth},\n'
+            f'header=\'{header}\', usage_header=\'{usage_header}\',\n'
+            f'ref_header=\'{ref_header}\', args_header=\'{args_header}\',\n'
+            f'spacey={spacey}, show_default={show_default},\n'
+            f'truncate_help={truncate_help}))')
+        exec('\n'.join(lines))
 
     if args.use_stdin:
         # catenate stdinput, parse / render
