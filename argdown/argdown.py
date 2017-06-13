@@ -120,9 +120,21 @@ def console():
 
     argparser = _argparse.ArgumentParser(
         description='Markdown export for the argparse module',
-        epilog='More info: github.com/9999years/argdown',
-        prog=prog
-    )
+        prog=prog,
+        epilog=
+'''Argdown requires a fully formed ArgumentParser object, after all the
+add_argument()s have been executed. The only way to make sure the
+ArgumentParser object is created in the same way that it would be during normal
+script execution is to execute the script until the arguments are parsed. To do
+this, argdown reads the input file(s) until it reads a line containing
+`.parse_args(`. The rest of the file, being irrelevant to the command-line
+invocation, is truncated, and a call to `argdown.md_help()` is inserted to
+generate the Markdown from the parser. It is important to note that this means
+the whole script up until the call to `parse_args` is executed in its entirety,
+including any side-effects that may entail --- argdown does not attempt
+to sanitize the code in any way.
+
+More info: github.com/9999years/argdown''')
 
     argparser.add_argument('src_file', nargs='*',
         help='The filename of a Python file to export Markdown from.')
@@ -167,6 +179,13 @@ def console():
         help='Encoding of all input files. Frankly, there\'s no excuse to ever '
         'use this argument')
 
+    argparser.add_argument('--function', type=str,
+        help='Function to be called to parse args. For example, if the '
+        'arg-parsing mechanism is contained in a console() function (common if '
+        'the script is a module and has a console entry point defined), '
+        'enter `--function console` if `console()` must be called to define '
+        'the argument parser.')
+
     argparser.add_argument('-v', '--version', action='version',
         version=f'%(prog)s {version}')
 
@@ -194,11 +213,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.''')
         exit()
 
-    # def md_help(parser, *, depth=1, header='Arguments and Usage',
-            # usage_header='Usage', ref_header='Quick reference table',
-            # args_header='Arguments', spacey=False, show_default=True,
-            # truncate_help=True):
-
     header        = args.header
     usage_header  = args.usage_header
     ref_header    = args.ref_header
@@ -207,24 +221,42 @@ SOFTWARE.''')
     show_default  = not args.hide_default
     truncate_help = args.truncate_help
     depth         = args.header_depth
+    function      = args.function
 
     import re
 
+    def get_indent(line):
+        indent = 0
+        for c in line:
+            if c == ' ':
+                indent += 1
+            elif c == '\t':
+                indent += 8
+            else:
+                # break on first word / non-white char
+                break
+        return indent
+
     def gen_help(src):
         lines = src.split('\n')
+        indent = 0
         for i, line in enumerate(lines):
             if '.parse_args(' in line:
                 lastline = i
                 # assured to match so no need for checking haha i hope
                 parser = re.search(r'(\w+)\.parse_args\(', line).group(1)
+                indent = get_indent(line)
                 break
         lines = lines[:lastline - 1]
         lines.insert(0, 'import argdown')
-        lines.append(f'print(md_help({parser}, depth={depth},\n'
+        lines.append(' ' * indent +
+            f'print(md_help({parser}, depth={depth},\n'
             f'header=\'{header}\', usage_header=\'{usage_header}\',\n'
             f'ref_header=\'{ref_header}\', args_header=\'{args_header}\',\n'
             f'spacey={spacey}, show_default={show_default},\n'
             f'truncate_help={truncate_help}))')
+        if function is not None:
+            lines.append(function + '()')
         exec('\n'.join(lines))
 
     if args.use_stdin:
