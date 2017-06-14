@@ -10,15 +10,69 @@ cols = _os.environ['COLUMNS'] if 'COLUMNS' in _os.environ else 78
 def md_help(parser, *, depth=1, header='Arguments and Usage',
         usage_header='Usage', ref_header='Quick reference table',
         args_header='Arguments', spacey=False, show_default=True,
-        truncate_help=True):
+        truncate_help=True, rst=False, hierarchy='#=-*+.'):
+
+    def code_block(code):
+        if rst:
+            out = '\n::\n'
+            for line in code.split('\n'):
+                out += f'    {line}\n'
+            out += '\n'
+            return out
+        else:
+            return f'```\n{code}```\n'
+
+    def header_text(text, depth):
+        if rst:
+            return (text
+                + '\n' + hierarchy[depth - 1] * len(text)
+                + f'\n{space}')
+        else:
+            return '#' * depth + f' {text}\n{space}'
+
+    def options_table(opts):
+        def divider_arr():
+            c = '=' if rst else '-'
+            return {
+                'short':   c * table_widths.short,
+                'long':    c * table_widths.long,
+                'default': c * table_widths.default,
+                'help':    c * table_widths.help,
+            }
+
+        # table divider character
+        d = ' ' if rst else '|'
+
+        options.insert(1, divider_arr())
+
+        if rst:
+            options.insert(0, divider_arr())
+            options.append(divider_arr())
+
+        table = ''
+        for opt in options:
+            table += (
+                f'{d}{{short:{table_widths.short}}}{d}'
+                f'{{long:{table_widths.long}}}{d}'
+                f'{{default:{table_widths.default}}}{d}'
+                '{help'
+                    + (f':.{table_widths.help}' if truncate_help else '')
+                + '}\n'
+            ).format(**opt)
+        return table
+
+    # inline code delimiter
+    icd = '``' if rst else '`'
+    def inline_code(code):
+        return f'{icd}{code}{icd}'
+
     global cols
     space = '\n' if spacey else ''
-    out = ('#' * depth + f' {header}\n{space}'
-        +  '#' * (depth + 1)
-        + f' {usage_header}\n{space}'
-        f'```\n{parser.format_usage()}```\n\n'
-        +  '#' * (depth + 1) + f' {args_header}\n{space}'
-        +  '#' * (depth + 2) + f' {ref_header}\n{space}')
+    out = (header_text(header, depth)
+        + header_text(usage_header, depth + 1)
+        + code_block(parser.format_usage())
+        + header_text(args_header, depth + 1)
+        + header_text(ref_header, depth + 2))
 
     used_actions = {}
     args_detailed = ''
@@ -43,7 +97,6 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
     i = 0
     for k in parser._option_string_actions:
         action = parser._option_string_actions[k]
-        # print(repr(action) + '\n')
         this_id = id(action)
         if this_id in used_actions:
             continue
@@ -59,12 +112,12 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         for opt in action.option_strings:
             # --, long option
             if len(opt) > 1 and opt[1] in parser.prefix_chars:
-                table_widths.maximize('long', opt)
-                options[i]['long'] = opt
+                options[i]['long'] = inline_code(opt)
+                table_widths.maximize('long', options[i]['long'])
             # short opt
             elif len(opt) > 0 and opt[0] in parser.prefix_chars:
-                table_widths.maximize('short', opt)
-                options[i]['short'] = opt
+                options[i]['short'] = inline_code(opt)
+                table_widths.maximize('short', options[i]['short'])
 
         # don't show defaults for options
         default_str = ''
@@ -73,13 +126,13 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
             or isinstance(action, _argparse._VersionAction)
             or isinstance(action, _argparse._HelpAction))):
             default = repr(action.default)
-            table_widths.maximize('default', default)
-            options[i]['default'] = default
+            options[i]['default'] = inline_code(default)
+            table_widths.maximize('default', options[i]['default'])
             default_str = f' (Default: {default})'
 
-        args_detailed += ('#' * (depth + 2)
-            + ' `' + '`, `'.join(action.option_strings)
-            + f'`{default_str}\n{space}'
+        args_detailed += (header_text(
+            inline_code(f'{icd}, {icd}'.join(action.option_strings))
+            + default_str, depth + 2)
             + _textwrap.fill(action.help, width=cols) + '\n\n')
         i += 1
 
@@ -90,28 +143,15 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         - table_widths.default
         - 4)
 
+    # table headers
     options.insert(0, {
         'short': 'Short',
         'long': 'Long',
         'default': 'Default',
         'help': 'Description'
     })
-    options.insert(1, {
-        'short':   '-' * table_widths.short,
-        'long':    '-' * table_widths.long,
-        'default': '-' * table_widths.default,
-        'help':    '-' * table_widths.help,
-    })
-    for opt in options:
-        table += (f'|{{short:{table_widths.short}}}|'
-            f'{{long:{table_widths.long}}}|'
-            f'{{default:{table_widths.default}}}|'
-            '{help'
-                + (f':.{table_widths.help}' if truncate_help else '')
-            + '}\n'
-        ).format(**opt)
 
-    out += table + '\n' + args_detailed
+    out += options_table(options) + '\n' + args_detailed
     return out
 
 def console():
@@ -163,6 +203,9 @@ More info: github.com/9999years/argdown''')
     argparser.add_argument('-s', '--spacey', action='store_true',
             help='Output a blank line after headers.')
 
+    argparser.add_argument('-r', '--rst', action='store_true',
+            help='Generate rst (reStructured Text) instead of Markdown.')
+
     argparser.add_argument('-d', '--hide-default', action='store_true',
             help='Don\'t output default values for the arguments.')
 
@@ -176,15 +219,15 @@ More info: github.com/9999years/argdown''')
         'top-level header.')
 
     argparser.add_argument('--encoding', type=str, default='utf-8',
-        help='Encoding of all input files. Frankly, there\'s no excuse to ever '
-        'use this argument')
+        help='Encoding of all input files. Frankly, there\'s no excuse to '
+        'ever use this argument')
 
     argparser.add_argument('-f', '--function', type=str,
         help='Function to be called to parse args. For example, if the '
-        'arg-parsing mechanism is contained in a console() function (common if '
-        'the script is a module and has a console entry point defined), '
-        'enter `--function console` if `console()` must be called to define '
-        'the argument parser.')
+        'arg-parsing mechanism is contained in a `console()` function '
+        '(common if the script is a module and has a console entry point '
+        'defined), enter `--function console` if `console()` must be called '
+        'to define the argument parser.')
 
     argparser.add_argument('-v', '--version', action='version',
         version=f'%(prog)s {version}')
@@ -222,6 +265,7 @@ SOFTWARE.''')
     truncate_help = args.truncate_help
     depth         = args.header_depth
     function      = args.function
+    use_rst       = args.rst
 
     import re
 
@@ -256,7 +300,7 @@ SOFTWARE.''')
             f'header=\'{header}\', usage_header=\'{usage_header}\',\n'
             f'ref_header=\'{ref_header}\', args_header=\'{args_header}\',\n'
             f'spacey={spacey}, show_default={show_default},\n'
-            f'truncate_help={truncate_help}))')
+            f'truncate_help={truncate_help}, rst={use_rst}))')
         if function is not None:
             lines.append(function + '()')
         exec('\n'.join(lines))
@@ -269,8 +313,8 @@ SOFTWARE.''')
         gen_help(src)
         exit()
 
-    # process each file, respecting encoding, although i really hope nobody ever
-    # uses that argument and to be quite frank i haven't tested it
+    # process each file, respecting encoding, although i really hope nobody
+    # ever uses that argument and to be quite frank i haven't tested it
     for fname in args.src_file:
         with open(fname, 'r', encoding=args.encoding) as f:
             gen_help(f.read())

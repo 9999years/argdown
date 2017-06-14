@@ -18,9 +18,9 @@ this, argdown reads the input file(s) until it reads a line containing
 ``.parse_args(``. The rest of the file, being irrelevant to the command-line
 invocation, is truncated, and a call to ``argdown.md_help()`` is inserted to
 generate the Markdown from the parser. It is important to note that this means
-the whole script up until the call to ``parse_args`` is executed in its entirety,
-including any side-effects that may entail --- argdown does not attempt
-to sanitize the code in any way.
+the whole script up until the call to ``parse_args`` is executed in its
+entirety, including any side-effects that may entail --- argdown does not
+attempt to sanitize the code in any way.
 
 Toy implementation
 ==================
