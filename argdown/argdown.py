@@ -14,7 +14,7 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
 
     def code_block(code):
         if rst:
-            out = '\n::\n'
+            out = '\n::\n\n'
             for line in code.split('\n'):
                 out += f'    {line}\n'
             out += '\n'
@@ -31,34 +31,32 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
             return '#' * depth + f' {text}\n{space}'
 
     def options_table(opts):
-        def divider_arr():
-            c = '=' if rst else '-'
-            return {
-                'short':   c * table_widths.short,
-                'long':    c * table_widths.long,
-                'default': c * table_widths.default,
-                'help':    c * table_widths.help,
-            }
-
         # table divider character
-        d = ' ' if rst else '|'
+        d = '|'
 
-        options.insert(1, divider_arr())
+        if not rst:
+            options.insert(1, {
+                'short':   '-' * table_widths.short,
+                'long':    '-' * table_widths.long,
+                'default': '-' * table_widths.default,
+                'help':    '-' * table_widths.help,
+            })
 
-        if rst:
-            options.insert(0, divider_arr())
-            options.append(divider_arr())
+        divider_line = ('+'
+            + '-' * table_widths.short   + '+'
+            + '-' * table_widths.long    + '+'
+            + '-' * table_widths.default + '+'
+            + '-' * table_widths.help    + '+\n'
+        ) if rst else ''
+        table = divider_line
 
-        table = ''
         for opt in options:
             table += (
                 f'{d}{{short:{table_widths.short}}}{d}'
                 f'{{long:{table_widths.long}}}{d}'
                 f'{{default:{table_widths.default}}}{d}'
-                '{help'
-                    + (f':.{table_widths.help}' if truncate_help else '')
-                + '}\n'
-            ).format(**opt)
+                f'{{help:{table_widths.help}.{table_widths.help}}}{d}\n'
+            ).format(**opt) + divider_line
         return table
 
     # inline code delimiter
@@ -125,10 +123,12 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
             not (isinstance(action.default, bool)
             or isinstance(action, _argparse._VersionAction)
             or isinstance(action, _argparse._HelpAction))):
-            default = repr(action.default)
+            default = action.default if isinstance(action.default, str) else repr(action.default)
             options[i]['default'] = inline_code(default)
             table_widths.maximize('default', options[i]['default'])
             default_str = f' (Default: {default})'
+
+        table_widths.maximize('help', action.help)
 
         args_detailed += (header_text(
             inline_code(f'{icd}, {icd}'.join(action.option_strings))
@@ -137,11 +137,12 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         i += 1
 
     # with proper lengths, we can make the table
-    table_widths.help = (cols
-        - table_widths.short
-        - table_widths.long
-        - table_widths.default
-        - 4)
+    if truncate_help:
+        table_widths.help = (cols
+            - table_widths.short
+            - table_widths.long
+            - table_widths.default
+            - 4)
 
     # table headers
     options.insert(0, {
@@ -205,6 +206,10 @@ More info: github.com/9999years/argdown''')
 
     argparser.add_argument('-r', '--rst', action='store_true',
             help='Generate rst (reStructured Text) instead of Markdown.')
+
+    argparser.add_argument('-e', '--hierarchy', type=str,
+            default='#=-*+.',
+            help='Order of header characters to use for rst output.')
 
     argparser.add_argument('-d', '--hide-default', action='store_true',
             help='Don\'t output default values for the arguments.')
