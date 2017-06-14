@@ -179,7 +179,7 @@ More info: github.com/9999years/argdown''')
         help='Encoding of all input files. Frankly, there\'s no excuse to ever '
         'use this argument')
 
-    argparser.add_argument('--function', type=str,
+    argparser.add_argument('-f', '--function', type=str,
         help='Function to be called to parse args. For example, if the '
         'arg-parsing mechanism is contained in a console() function (common if '
         'the script is a module and has a console entry point defined), '
@@ -240,13 +240,15 @@ SOFTWARE.''')
     def gen_help(src):
         lines = src.split('\n')
         indent = 0
+        parser_expr = re.compile(r'(\w+)\.parse_args\(')
         for i, line in enumerate(lines):
             if '.parse_args(' in line:
-                lastline = i
-                # assured to match so no need for checking haha i hope
-                parser = re.search(r'(\w+)\.parse_args\(', line).group(1)
-                indent = get_indent(line)
-                break
+                parser = re.search(parser_expr, line)
+                if parser is not None:
+                    lastline = i
+                    parser = parser.group(1)
+                    indent = get_indent(line)
+                    break
         lines = lines[:lastline - 1]
         lines.insert(0, 'import argdown')
         lines.append(' ' * indent +
