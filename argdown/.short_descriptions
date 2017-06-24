@@ -1,0 +1,18 @@
+{
+	'--help':          'Show help',
+	'-':               'Read from STDIN',
+	'--license':       'Print license',
+	'--header':        'Header text',
+	'--usage-header':  'Header text',
+	'--ref-header':    'Header text',
+	'--args-header':   'Header text',
+	'--spacey':        'Blank lines after headers',
+	'--rst':           'Generate rst',
+	'--hierarchy':     'rst header order',
+	'--hide-default':  'Hide default arg values',
+	'--truncate-help': 'Truncate help in this table',
+	'--header-depth':  'Header depth of top header',
+	'--encoding':      'Input file encoding',
+	'--function':      'Function to call in file',
+	'--version':       'Show version',
+}

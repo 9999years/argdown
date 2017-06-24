@@ -1,24 +1,77 @@
-import argparse as _argparse
+import argparse
 # table col
-import os as _os
+from os import environ
 # output
-import textwrap as _textwrap
+import textwrap
 
-version = '1.0.0'
-cols = _os.environ['COLUMNS'] if 'COLUMNS' in _os.environ else 80
+version = '1.1.0'
+cols = environ['COLUMNS'] if 'COLUMNS' in environ else 78
 
 def md_help(parser, *, depth=1, header='Arguments and Usage',
         usage_header='Usage', ref_header='Quick reference table',
         args_header='Arguments', spacey=False, show_default=True,
-        truncate_help=True):
+        truncate_help=True, rst=False, hierarchy='#=-*+.',
+        short_descriptions=None):
+
+    def code_block(code):
+        if rst:
+            out = '\n::\n\n'
+            for line in code.split('\n'):
+                out += f'    {line}\n'
+            out += '\n'
+            return out
+        else:
+            return f'```\n{code}```\n'
+
+    def header_text(text, depth):
+        if rst:
+            return (text
+                + '\n' + hierarchy[depth - 1] * len(text)
+                + f'\n{space}')
+        else:
+            return '#' * depth + f' {text}\n{space}'
+
+    def options_table(opts):
+        # table divider character
+        d = '|'
+
+        if not rst:
+            options.insert(1, {
+                'short':   '-' * table_widths.short,
+                'long':    '-' * table_widths.long,
+                'default': '-' * table_widths.default,
+                'help':    '-' * table_widths.help,
+            })
+
+        divider_line = ('+'
+            + '-' * table_widths.short   + '+'
+            + '-' * table_widths.long    + '+'
+            + '-' * table_widths.default + '+'
+            + '-' * table_widths.help    + '+\n'
+        ) if rst else ''
+        table = divider_line
+
+        for opt in options:
+            table += (
+                f'{d}{{short:{table_widths.short}}}{d}'
+                f'{{long:{table_widths.long}}}{d}'
+                f'{{default:{table_widths.default}}}{d}'
+                f'{{help:{table_widths.help}.{table_widths.help}}}{d}\n'
+            ).format(**opt) + divider_line
+        return table
+
+    # inline code delimiter
+    icd = '``' if rst else '`'
+    def inline_code(code):
+        return f'{icd}{code}{icd}'
+
     global cols
     space = '\n' if spacey else ''
-    out = ('#' * depth + f' {header}\n{space}'
-        +  '#' * (depth + 1)
-        + f' {usage_header}\n{space}'
-        f'```\n{parser.format_usage()}```\n\n'
-        +  '#' * (depth + 1) + f' {args_header}\n{space}'
-        +  '#' * (depth + 2) + f' {ref_header}\n{space}')
+    out = (header_text(header, depth)
+        + header_text(usage_header, depth + 1)
+        + code_block(parser.format_usage())
+        + header_text(args_header, depth + 1)
+        + header_text(ref_header, depth + 2))
 
     used_actions = {}
     args_detailed = ''
@@ -43,7 +96,6 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
     i = 0
     for k in parser._option_string_actions:
         action = parser._option_string_actions[k]
-        # print(repr(action) + '\n')
         this_id = id(action)
         if this_id in used_actions:
             continue
@@ -59,66 +111,63 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         for opt in action.option_strings:
             # --, long option
             if len(opt) > 1 and opt[1] in parser.prefix_chars:
-                table_widths.maximize('long', opt)
-                options[i]['long'] = opt
+                options[i]['long'] = inline_code(opt)
+                table_widths.maximize('long', options[i]['long'])
             # short opt
             elif len(opt) > 0 and opt[0] in parser.prefix_chars:
-                table_widths.maximize('short', opt)
-                options[i]['short'] = opt
+                options[i]['short'] = inline_code(opt)
+                table_widths.maximize('short', options[i]['short'])
+
+            if short_descriptions is not None and opt in short_descriptions:
+                options[i]['help'] = short_descriptions[opt]
 
         # don't show defaults for options
         default_str = ''
         if (show_default and
             not (isinstance(action.default, bool)
-            or isinstance(action, _argparse._VersionAction)
-            or isinstance(action, _argparse._HelpAction))):
-            default = repr(action.default)
-            table_widths.maximize('default', default)
-            options[i]['default'] = default
+            or isinstance(action, argparse._VersionAction)
+            or isinstance(action, argparse._HelpAction))):
+            default = action.default if isinstance(action.default, str) else repr(action.default)
+            options[i]['default'] = inline_code(default)
+            table_widths.maximize('default', options[i]['default'])
             default_str = f' (Default: {default})'
 
-        args_detailed += ('#' * (depth + 2)
-            + ' `' + '`, `'.join(action.option_strings)
-            + f'`{default_str}\n{space}'
-            + _textwrap.fill(action.help, width=cols) + '\n\n')
+        table_widths.maximize('help', action.help)
+
+        args_detailed += (header_text(
+            inline_code(f'{icd}, {icd}'.join(action.option_strings))
+            + default_str, depth + 2)
+            + textwrap.fill(action.help, width=cols) + '\n\n')
         i += 1
 
     # with proper lengths, we can make the table
-    table_widths.help = (cols
-        - table_widths.short
-        - table_widths.long
-        - table_widths.default
-        - 4)
+    if truncate_help:
+        table_widths.help = (cols
+            - table_widths.short
+            - table_widths.long
+            - table_widths.default
+            - 4)
 
+    # table headers
     options.insert(0, {
         'short': 'Short',
         'long': 'Long',
         'default': 'Default',
         'help': 'Description'
     })
-    options.insert(1, {
-        'short':   '-' * table_widths.short,
-        'long':    '-' * table_widths.long,
-        'default': '-' * table_widths.default,
-        'help':    '-' * table_widths.help,
-    })
-    for opt in options:
-        table += (f'|{{short:{table_widths.short}}}|'
-            f'{{long:{table_widths.long}}}|'
-            f'{{default:{table_widths.default}}}|'
-            '{help'
-                + (f':.{table_widths.help}' if truncate_help else '')
-            + '}\n'
-        ).format(**opt)
 
-    out += table + '\n' + args_detailed
+    out += options_table(options) + '\n' + args_detailed
     return out
+
+# https://stackoverflow.com/a/12926008/5719760
+def union(d1, d2):
+    return dict(list(d1.items()) + list(d2.items()))
 
 def console():
     prog = 'argdown'
     global cols
 
-    argparser = _argparse.ArgumentParser(
+    argparser = argparse.ArgumentParser(
         description='Markdown export for the argparse module',
         prog=prog,
         epilog=
@@ -163,6 +212,13 @@ More info: github.com/9999years/argdown''')
     argparser.add_argument('-s', '--spacey', action='store_true',
             help='Output a blank line after headers.')
 
+    argparser.add_argument('-r', '--rst', action='store_true',
+            help='Generate rst (reStructured Text) instead of Markdown.')
+
+    argparser.add_argument('-e', '--hierarchy', type=str,
+            default='#=-*+.',
+            help='Order of header characters to use for rst output.')
+
     argparser.add_argument('-d', '--hide-default', action='store_true',
             help='Don\'t output default values for the arguments.')
 
@@ -176,15 +232,18 @@ More info: github.com/9999years/argdown''')
         'top-level header.')
 
     argparser.add_argument('--encoding', type=str, default='utf-8',
-        help='Encoding of all input files. Frankly, there\'s no excuse to ever '
-        'use this argument')
+        help='Encoding of all input files. Frankly, there\'s no excuse to '
+        'ever use this argument')
 
-    argparser.add_argument('--function', type=str,
+    argparser.add_argument('--short-descriptions', type=str, default=None,
+        help='Dict of short descriptions to use in the quick reference table.')
+
+    argparser.add_argument('-f', '--function', type=str,
         help='Function to be called to parse args. For example, if the '
-        'arg-parsing mechanism is contained in a console() function (common if '
-        'the script is a module and has a console entry point defined), '
-        'enter `--function console` if `console()` must be called to define '
-        'the argument parser.')
+        'arg-parsing mechanism is contained in a `console()` function '
+        '(common if the script is a module and has a console entry point '
+        'defined), enter `--function console` if `console()` must be called '
+        'to define the argument parser.')
 
     argparser.add_argument('-v', '--version', action='version',
         version=f'%(prog)s {version}')
@@ -222,6 +281,15 @@ SOFTWARE.''')
     truncate_help = args.truncate_help
     depth         = args.header_depth
     function      = args.function
+    use_rst       = args.rst
+
+    # dict parsing
+    from ast import literal_eval
+    original_short_descriptions = (
+        literal_eval(args.short_descriptions)
+        if args.short_descriptions is not None else None
+    )
+    short_descriptions = original_short_descriptions
 
     import re
 
@@ -240,21 +308,33 @@ SOFTWARE.''')
     def gen_help(src):
         lines = src.split('\n')
         indent = 0
+        parser_expr = re.compile(r'(\w+)\.parse_args\(')
         for i, line in enumerate(lines):
+            # static string check
             if '.parse_args(' in line:
-                lastline = i
-                # assured to match so no need for checking haha i hope
-                parser = re.search(r'(\w+)\.parse_args\(', line).group(1)
-                indent = get_indent(line)
-                break
+                # finer regex check
+                parser = re.search(parser_expr, line)
+                if parser is not None:
+                    lastline = i
+                    parser = parser.group(1)
+                    indent = get_indent(line)
+                    break
         lines = lines[:lastline - 1]
+
+        short_descriptions = (
+            'short_descriptions if \'short_descriptions\' \n'
+            'in union(globals(), locals()) else None'
+            if short_descriptions is None
+            else repr(short_descriptions))
+
         lines.insert(0, 'import argdown')
         lines.append(' ' * indent +
             f'print(md_help({parser}, depth={depth},\n'
             f'header=\'{header}\', usage_header=\'{usage_header}\',\n'
             f'ref_header=\'{ref_header}\', args_header=\'{args_header}\',\n'
             f'spacey={spacey}, show_default={show_default},\n'
-            f'truncate_help={truncate_help}))')
+            f'truncate_help={truncate_help}, rst={use_rst},\n'
+            f'short_descriptions={short_descriptions}))')
         if function is not None:
             lines.append(function + '()')
         exec('\n'.join(lines))
@@ -267,8 +347,19 @@ SOFTWARE.''')
         gen_help(src)
         exit()
 
-    # process each file, respecting encoding, although i really hope nobody ever
-    # uses that argument and to be quite frank i haven't tested it
+    # process each file, respecting encoding, although i really hope nobody
+    # ever uses that argument and to be quite frank i haven't tested it
+
+    # path manipulation
+    from os import path
     for fname in args.src_file:
         with open(fname, 'r', encoding=args.encoding) as f:
+            short_descriptions = original_short_descriptions
+            (head, tail) = path.split(fname)
+            # check ./.short_descriptions for short_descriptions dict
+            dotfile = path.join(head, '.short_descriptions')
+            if path.exists(dotfile):
+                with open(dotfile, 'r', encoding=args.encoding) as d:
+                    short_descriptions = d.read()
+                    short_descriptions = literal_eval(short_descriptions)
             gen_help(f.read())
