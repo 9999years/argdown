@@ -19,8 +19,47 @@ this, argdown reads the input file(s) until it reads a line containing
 invocation, is truncated, and a call to ``argdown.md_help()`` is inserted to
 generate the Markdown from the parser. It is important to note that this means
 the whole script up until the call to ``parse_args`` is executed in its
-entirety, including any side-effects that may entail --- argdown does not
+entirety, including any side-effects that may entail — argdown does not
 attempt to sanitize the code in any way.
+
+There are two ways to use argdown — from the command-line, as detailed in the
+Arguments and Usage section, and for more persistent behavior, from a similar
+``.argdown`` file, as detailed in the ``.argdown`` section.
+
+``.argdown``
+############
+
+A ``.argdown`` file is a python literal and may be a list of preference-dicts
+or a single preference-dict.
+
+Here’s an example ``.argdown`` preference-dict with all possible values /
+options filled in — any keys ommitted will default to these values (except for
+``options``, which defaults to the empty set — all options are shown here for
+reference purposes).  If ``use-stdin`` is present in the ``options`` key, the
+contents of the ``files`` key are discarded. No keys are mandatory, and an
+``.argdown`` consisting of an empty dict corresponds to the behavior of running
+``argdown`` from the command-line, with the exception of the command-line
+invocation not executing all ``.py`` files in the current directory.
+
+::
+
+    {
+        'files': ['*.py'],
+        'options': {
+                'use-stdin', 'spacey', 'rst', 'hide-default', 'truncate-help'
+        },
+        'header':       'Arguments and Usage',
+        'usage-header': 'Usage',
+        'ref-header':   'Quick reference table',
+        'args-header':  'Arguments',
+        'hierarchy':    '#=-*+.',
+        'header-depth': 1
+        'encoding':     'utf-8',
+        'function':     None
+    }
+
+Any command-line arguments (see below) will override their corresponding values
+in all of a ``.argdown``’s preference-dicts.
 
 Arguments and Usage
 ###################
