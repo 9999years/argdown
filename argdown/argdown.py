@@ -159,10 +159,6 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
     out += options_table(options) + '\n' + args_detailed
     return out
 
-# https://stackoverflow.com/a/12926008/5719760
-def union(d1, d2):
-    return dict(list(d1.items()) + list(d2.items()))
-
 def console():
     prog = 'argdown'
     global cols
@@ -324,6 +320,10 @@ SOFTWARE.''')
                     indent = get_indent(line)
                     break
         lines = lines[:lastline - 1]
+
+        # https://stackoverflow.com/a/12926008/5719760
+        def union(d1, d2):
+            return dict(list(d1.items()) + list(d2.items()))
 
         short_descriptions = (
             'short_descriptions if \'short_descriptions\' \n'
