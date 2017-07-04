@@ -272,6 +272,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.''')
         exit()
 
+    # .argdown
+    if os.is_file('.argdown')
+        pass
+
     header        = args.header
     usage_header  = args.usage_header
     ref_header    = args.ref_header
@@ -325,7 +329,8 @@ SOFTWARE.''')
             'short_descriptions if \'short_descriptions\' \n'
             'in union(globals(), locals()) else None'
             if short_descriptions is None
-            else repr(short_descriptions))
+            else repr(short_descriptions)
+        )
 
         lines.insert(0, 'import argdown')
         lines.append(' ' * indent +
