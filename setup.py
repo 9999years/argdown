@@ -11,7 +11,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
     name='argdown',
     # semver
-    version='1.1.0',
+    version='0.0.1',
     description='Markdown export for the argparse module',
     long_description=long_description,
     url='https://github.com/9999years/argdown',
@@ -21,7 +21,7 @@ setup(
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'Environment :: Console',
         'License :: OSI Approved :: MIT License',
@@ -38,7 +38,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'argdown=argdown.argdown:console',
+            'argdown=argdown.argdown:main',
         ],
     }
 )

@@ -159,7 +159,7 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
     out += options_table(options) + '\n' + args_detailed
     return out
 
-def console():
+def main():
     prog = 'argdown'
     global cols
 
@@ -236,9 +236,9 @@ More info: github.com/9999years/argdown''')
 
     argparser.add_argument('-f', '--function', type=str,
         help='Function to be called to parse args. For example, if the '
-        'arg-parsing mechanism is contained in a `console()` function '
+        'arg-parsing mechanism is contained in a `main()` function '
         '(common if the script is a module and has a console entry point '
-        'defined), enter `--function console` if `console()` must be called '
+        'defined), enter `--function main` if `main()` must be called '
         'to define the argument parser.')
 
     argparser.add_argument('-v', '--version', action='version',
@@ -363,3 +363,5 @@ SOFTWARE.''')
                     short_descriptions = d.read()
                     short_descriptions = literal_eval(short_descriptions)
             gen_help(f.read())
+
+if __name__ == '__main__': main()
