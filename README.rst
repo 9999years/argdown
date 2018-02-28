@@ -63,6 +63,10 @@ invocation not executing all ``.py`` files in the current directory.
 Any command-line arguments (see below) will override their corresponding values
 in all of a ``.argdown`` ’s preference-dicts.
 
+Note that the ``.argdown`` will be parsed as Python code using
+|ast.literal_eval|_, so feel free to use comments, raw strings, or other
+Python niceties. Function calls won’t be executed, however.
+
 Arguments and Usage
 ###################
 Usage
@@ -293,5 +297,8 @@ License
 
 MIT, see ``license.txt``
 
+.. |argparse| replace:: ``argparse``
 .. _argparse: https://docs.python.org/3/library/argparse.html
 .. _license.txt: blob/master/license.txt
+.. |ast.literal_eval| replace:: ``ast.literal_eval``
+.. _ast.literal_eval: https://docs.python.org/3/library/ast.html#ast.literal_eval
