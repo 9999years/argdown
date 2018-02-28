@@ -5,7 +5,58 @@ from os import environ
 import textwrap
 
 version = '1.1.0'
-cols = environ['COLUMNS'] if 'COLUMNS' in environ else 78
+
+def get_indent(line):
+    indent = 0
+    for c in line:
+        if c == ' ':
+            indent += 1
+        elif c == '\t':
+            indent += 8
+        else:
+            # break on first word / non-white char
+            break
+    return indent
+
+def gen_help(src):
+    lines = src.split('\n')
+    indent = 0
+    parser_expr = re.compile(r'(\w+)\.parse_args\(')
+    for i, line in enumerate(lines):
+        # static string check
+        if '.parse_args(' in line:
+            # finer regex check
+            parser = re.search(parser_expr, line)
+            if parser is not None:
+                lastline = i
+                parser = parser.group(1)
+                indent = get_indent(line)
+                break
+    lines = lines[:lastline - 1]
+
+    # https://stackoverflow.com/a/12926008/5719760
+    def union(d1, d2):
+        return dict(list(d1.items()) + list(d2.items()))
+
+    short_descriptions = (
+        'short_descriptions if \'short_descriptions\' \n'
+        'in union(globals(), locals()) else None'
+        if short_descriptions is None
+        else repr(short_descriptions)
+    )
+
+    lines.insert(0, 'import argdown')
+    lines.append(' ' * indent +
+        f'print(md_help({parser}, depth={depth},\n'
+        f'header=\'{header}\', usage_header=\'{usage_header}\',\n'
+        f'ref_header=\'{ref_header}\', args_header=\'{args_header}\',\n'
+        f'spacey={spacey}, show_default={show_default},\n'
+        f'truncate_help={truncate_help}, rst={use_rst},\n'
+        f'short_descriptions={short_descriptions}))')
+    if function is not None:
+        lines.append(function + '()')
+    exec('\n'.join(lines))
+
 
 def md_help(parser, *, depth=1, header='Arguments and Usage',
         usage_header='Usage', ref_header='Quick reference table',
@@ -159,13 +210,11 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
     out += options_table(options) + '\n' + args_detailed
     return out
 
-def console():
-    prog = 'argdown'
+def main():
     global cols
 
     argparser = argparse.ArgumentParser(
         description='Markdown export for the argparse module',
-        prog=prog,
         epilog=
 '''Argdown requires a fully formed ArgumentParser object, after all the
 add_argument()s have been executed. The only way to make sure the
@@ -293,57 +342,6 @@ SOFTWARE.''')
 
     import re
 
-    def get_indent(line):
-        indent = 0
-        for c in line:
-            if c == ' ':
-                indent += 1
-            elif c == '\t':
-                indent += 8
-            else:
-                # break on first word / non-white char
-                break
-        return indent
-
-    def gen_help(src):
-        lines = src.split('\n')
-        indent = 0
-        parser_expr = re.compile(r'(\w+)\.parse_args\(')
-        for i, line in enumerate(lines):
-            # static string check
-            if '.parse_args(' in line:
-                # finer regex check
-                parser = re.search(parser_expr, line)
-                if parser is not None:
-                    lastline = i
-                    parser = parser.group(1)
-                    indent = get_indent(line)
-                    break
-        lines = lines[:lastline - 1]
-
-        # https://stackoverflow.com/a/12926008/5719760
-        def union(d1, d2):
-            return dict(list(d1.items()) + list(d2.items()))
-
-        short_descriptions = (
-            'short_descriptions if \'short_descriptions\' \n'
-            'in union(globals(), locals()) else None'
-            if short_descriptions is None
-            else repr(short_descriptions)
-        )
-
-        lines.insert(0, 'import argdown')
-        lines.append(' ' * indent +
-            f'print(md_help({parser}, depth={depth},\n'
-            f'header=\'{header}\', usage_header=\'{usage_header}\',\n'
-            f'ref_header=\'{ref_header}\', args_header=\'{args_header}\',\n'
-            f'spacey={spacey}, show_default={show_default},\n'
-            f'truncate_help={truncate_help}, rst={use_rst},\n'
-            f'short_descriptions={short_descriptions}))')
-        if function is not None:
-            lines.append(function + '()')
-        exec('\n'.join(lines))
-
     if args.use_stdin:
         # catenate stdinput, parse / render
         src = ''
@@ -368,3 +366,6 @@ SOFTWARE.''')
                     short_descriptions = d.read()
                     short_descriptions = literal_eval(short_descriptions)
             gen_help(f.read())
+
+if __name__ == '__main__':
+    main()

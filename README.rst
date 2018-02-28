@@ -1,3 +1,5 @@
+I have decided this is a **bad idea** and you should not use it. Thanks!
+
 argdown
 #######
 
@@ -59,7 +61,7 @@ invocation not executing all ``.py`` files in the current directory.
     }
 
 Any command-line arguments (see below) will override their corresponding values
-in all of a ``.argdown``’s preference-dicts.
+in all of a ``.argdown`` ’s preference-dicts.
 
 Arguments and Usage
 ###################
