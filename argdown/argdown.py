@@ -1,16 +1,18 @@
-import argparse as _argparse
+import argparse
+import os
 # table col
-import os as _os
+from os import environ
 # output
-import textwrap as _textwrap
+import textwrap
 
 version = '1.1.0'
-cols = _os.environ['COLUMNS'] if 'COLUMNS' in _os.environ else 78
+cols = environ['COLUMNS'] if 'COLUMNS' in environ else 78
 
 def md_help(parser, *, depth=1, header='Arguments and Usage',
         usage_header='Usage', ref_header='Quick reference table',
         args_header='Arguments', spacey=False, show_default=True,
-        truncate_help=True, rst=False, hierarchy='#=-*+.'):
+        truncate_help=True, rst=False, hierarchy='#=-*+.',
+        short_descriptions=None):
 
     def code_block(code):
         if rst:
@@ -117,12 +119,15 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
                 options[i]['short'] = inline_code(opt)
                 table_widths.maximize('short', options[i]['short'])
 
+            if short_descriptions is not None and opt in short_descriptions:
+                options[i]['help'] = short_descriptions[opt]
+
         # don't show defaults for options
         default_str = ''
         if (show_default and
             not (isinstance(action.default, bool)
-            or isinstance(action, _argparse._VersionAction)
-            or isinstance(action, _argparse._HelpAction))):
+            or isinstance(action, argparse._VersionAction)
+            or isinstance(action, argparse._HelpAction))):
             default = action.default if isinstance(action.default, str) else repr(action.default)
             options[i]['default'] = inline_code(default)
             table_widths.maximize('default', options[i]['default'])
@@ -133,7 +138,7 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
         args_detailed += (header_text(
             inline_code(f'{icd}, {icd}'.join(action.option_strings))
             + default_str, depth + 2)
-            + _textwrap.fill(action.help, width=cols) + '\n\n')
+            + textwrap.fill(action.help, width=cols) + '\n\n')
         i += 1
 
     # with proper lengths, we can make the table
@@ -155,11 +160,11 @@ def md_help(parser, *, depth=1, header='Arguments and Usage',
     out += options_table(options) + '\n' + args_detailed
     return out
 
-def console():
+def main():
     prog = 'argdown'
     global cols
 
-    argparser = _argparse.ArgumentParser(
+    argparser = argparse.ArgumentParser(
         description='Markdown export for the argparse module',
         prog=prog,
         epilog=
@@ -227,11 +232,14 @@ More info: github.com/9999years/argdown''')
         help='Encoding of all input files. Frankly, there\'s no excuse to '
         'ever use this argument')
 
+    argparser.add_argument('--short-descriptions', type=str, default=None,
+        help='Dict of short descriptions to use in the quick reference table.')
+
     argparser.add_argument('-f', '--function', type=str,
         help='Function to be called to parse args. For example, if the '
-        'arg-parsing mechanism is contained in a `console()` function '
+        'arg-parsing mechanism is contained in a `main()` function '
         '(common if the script is a module and has a console entry point '
-        'defined), enter `--function console` if `console()` must be called '
+        'defined), enter `--function main` if `main()` must be called '
         'to define the argument parser.')
 
     argparser.add_argument('-v', '--version', action='version',
@@ -261,6 +269,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.''')
         exit()
 
+    # .argdown
+    if os.path.isfile('.argdown'):
+        pass
+
     header        = args.header
     usage_header  = args.usage_header
     ref_header    = args.ref_header
@@ -271,6 +283,14 @@ SOFTWARE.''')
     depth         = args.header_depth
     function      = args.function
     use_rst       = args.rst
+
+    # dict parsing
+    from ast import literal_eval
+    original_short_descriptions = (
+        literal_eval(args.short_descriptions)
+        if args.short_descriptions is not None else None
+    )
+    short_descriptions = original_short_descriptions
 
     import re
 
@@ -290,8 +310,11 @@ SOFTWARE.''')
         lines = src.split('\n')
         indent = 0
         parser_expr = re.compile(r'(\w+)\.parse_args\(')
+        lastline = len(lines) - 1
         for i, line in enumerate(lines):
+            # static string check
             if '.parse_args(' in line:
+                # finer regex check
                 parser = re.search(parser_expr, line)
                 if parser is not None:
                     lastline = i
@@ -299,13 +322,24 @@ SOFTWARE.''')
                     indent = get_indent(line)
                     break
         lines = lines[:lastline - 1]
+
+        # https://stackoverflow.com/a/12926008/5719760
+        def union(d1, d2):
+            return dict(list(d1.items()) + list(d2.items()))
+
+        short_descriptions = (
+            repr('short_descriptions if \'short_descriptions\' \n'
+            'in union(globals(), locals()) else None')
+        )
+
         lines.insert(0, 'import argdown')
         lines.append(' ' * indent +
             f'print(md_help({parser}, depth={depth},\n'
             f'header=\'{header}\', usage_header=\'{usage_header}\',\n'
             f'ref_header=\'{ref_header}\', args_header=\'{args_header}\',\n'
             f'spacey={spacey}, show_default={show_default},\n'
-            f'truncate_help={truncate_help}, rst={use_rst}))')
+            f'truncate_help={truncate_help}, rst={use_rst},\n'
+            f'short_descriptions={short_descriptions}))')
         if function is not None:
             lines.append(function + '()')
         exec('\n'.join(lines))
@@ -320,6 +354,19 @@ SOFTWARE.''')
 
     # process each file, respecting encoding, although i really hope nobody
     # ever uses that argument and to be quite frank i haven't tested it
+
+    # path manipulation
+    from os import path
     for fname in args.src_file:
         with open(fname, 'r', encoding=args.encoding) as f:
+            short_descriptions = original_short_descriptions
+            (head, tail) = path.split(fname)
+            # check ./.short_descriptions for short_descriptions dict
+            dotfile = path.join(head, '.short_descriptions')
+            if path.exists(dotfile):
+                with open(dotfile, 'r', encoding=args.encoding) as d:
+                    short_descriptions = d.read()
+                    short_descriptions = literal_eval(short_descriptions)
             gen_help(f.read())
+
+if __name__ == '__main__': main()
